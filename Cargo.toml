@@ -1,3 +1,6 @@
+[workspace]
+members = [".", "debug_with_context_macros"]
+
 [package]
 name = "debug_with_context"
 version = "0.1.0"
