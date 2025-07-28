@@ -27,6 +27,8 @@ fn get_unnamed_enum_arg(idx: usize) -> String {
     "arg".to_string() + &idx.to_string()
 }
 
+// TODO : can I ask to the compiler if type implements Debug and in this case use field and not field_with ?
+
 fn gen_field(field: &Field, field_idx: usize, is_struct: bool, is_named: bool) -> proc_macro2::TokenStream {
     let field_name = match &field.ident {
         Some(i) => {
