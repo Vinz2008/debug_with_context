@@ -1,58 +1,120 @@
 use proc_macro::TokenStream;
-use quote::quote;
-use syn::{parse_macro_input, Data, DeriveInput, Field};
+use proc_macro2::Ident;
+use quote::{ToTokens, quote};
+use syn::{Data, DeriveInput, Field, Fields, parse_macro_input, spanned::Spanned};
 
+fn compile_error<T: ToTokens>(tokens: T, message: &'static str) -> proc_macro2::TokenStream {
+    syn::Error::new_spanned(tokens, message).to_compile_error()
+}
 
-fn gen_field(field: &Field, is_struct : bool) -> proc_macro2::TokenStream {
+fn gen_field_struct_named(field: (usize, &Field)) -> proc_macro2::TokenStream {
+    gen_field(field.1, field.0, true, true)
+}
+
+fn gen_field_enum_named(field: (usize, &Field)) -> proc_macro2::TokenStream {
+    gen_field(field.1, field.0, false, true)
+}
+
+fn gen_field_struct_unnamed(field: (usize, &Field)) -> proc_macro2::TokenStream {
+    gen_field(field.1, field.0, true, false)
+}
+
+fn gen_field_enum_unnamed(field: (usize, &Field)) -> proc_macro2::TokenStream {
+    gen_field(field.1, field.0, false, false)
+}
+
+fn get_unnamed_enum_arg(idx: usize) -> String {
+    "arg".to_string() + &idx.to_string()
+}
+
+fn gen_field(field: &Field, field_idx: usize, is_struct: bool, is_named: bool) -> proc_macro2::TokenStream {
     let field_name = match &field.ident {
-        Some(i) => i.clone(),
-        None => todo!(), // TODO : handle struct tuples ?
+        Some(i) => {
+            let ident_i = i.clone();
+            quote! { #ident_i }
+        }
+        None => {
+            if is_struct {
+                syn::Index::from(field_idx).into_token_stream()
+            } else {
+                let idx_str = get_unnamed_enum_arg(field_idx);
+                Ident::new(&idx_str, proc_macro2::Span::call_site()).into_token_stream()
+            }
+        } // TODO : handle struct tuples ?
     };
 
-    let field_name_str= field_name.to_string();
+    let field_name_str = field_name.to_string();
     let field_name_lit = syn::LitStr::new(&field_name_str, proc_macro2::Span::call_site());
 
     let obj_access = if is_struct {
         quote! {
-                self. #field_name
-            }
+            self. #field_name
+        }
     } else {
         quote! {
             #field_name
         }
     };
 
-    quote! {
-        .field_with(#field_name_lit,  |fmt| {
-            #obj_access .fmt_with_context(fmt, context)
-        })    
-    }
+    let optional_name_arg = if is_named {
+        Some(quote! { #field_name_lit, })
+    } else {
+        None
+    };
 
-    
+    quote! {
+        .field_with(#optional_name_arg  |fmt| {
+            #obj_access .fmt_with_context(fmt, context)
+        })
+    }
 }
+
+// TODO : remove all the useless .collect::<Vec<_>>() ?
 
 #[proc_macro_derive(DebugWithContext, attributes(debug_context))]
 pub fn derive(input: TokenStream) -> TokenStream {
-    let DeriveInput { ident, attrs, vis: _, generics, data } = parse_macro_input!(input);
+    let DeriveInput {
+        ident,
+        attrs,
+        vis: _,
+        generics,
+        data,
+    } = parse_macro_input!(input);
     let mut context_struct = None;
-    for attr in  attrs {
+    for attr in attrs {
         if attr.path().is_ident("debug_context") {
             attr.parse_nested_meta(|meta| {
-                context_struct = Some(meta.path.get_ident().expect("Expected an identifier for the debug context struct").clone());
+                context_struct = Some(
+                    meta.path
+                        .get_ident()
+                        .expect("Expected an identifier for the debug context struct")
+                        .clone(),
+                );
                 Ok(())
-            }).unwrap();
+            })
+            .unwrap();
         }
     }
-    
 
     let context_struct = match context_struct {
         Some(cs) => cs,
         None => {
-            return syn::Error::new_spanned(ident, "Missing #[debug_context(...)] attribute").to_compile_error().into();
+            return compile_error(ident, "Missing #[debug_context(...)] attribute").into();
         }
     };
 
-    let generic_param_types = generics.type_params().map(|t| t.ident.clone()).collect::<Vec<_>>();
+
+    let generic_param_types = generics
+        .type_params()
+        .map(|t| t.clone())
+        .collect::<Vec<_>>();
+
+
+    let where_clause = match generics.where_clause {
+        Some(where_clause) => Some(where_clause.to_token_stream()), 
+        None => None,
+    };
+
 
     let mut generic_quote = None;
 
@@ -72,11 +134,32 @@ pub fn derive(input: TokenStream) -> TokenStream {
                 let variant_name = &v.ident;
                 let variant_name_str= variant_name.to_string();
                 let variant_name_lit = syn::LitStr::new(&variant_name_str, proc_macro2::Span::call_site());
-                let variant_field_names = v.fields.iter().map(|f| f.ident.as_ref().unwrap().clone()).collect::<Vec<_>>();
-                let variant_fields = v.fields.iter().map(|f| gen_field(f, false)).collect::<Vec<_>>();
-                quote! {
-                    Self:: #variant_name { #(#variant_field_names,)* } => f.debug_struct(#variant_name_lit)
-                                        #(#variant_fields)* .finish() ,
+
+                
+
+                let is_tuple = v.fields.iter().any(|e| e.ident.is_none());
+                
+                let gen_field_enum = if is_tuple {
+                    gen_field_enum_unnamed
+                } else {
+                    gen_field_enum_named
+                };
+                
+                let variant_fields = v.fields.iter().enumerate().map(gen_field_enum).collect::<Vec<_>>();
+                
+                if is_tuple {
+                    let variant_field_names_lit = 
+                        (0..v.fields.len()).map(get_unnamed_enum_arg).map(|e| Ident::new(&e, proc_macro2::Span::call_site())).collect::<Vec<_>>();
+                    quote! {
+                        Self:: #variant_name ( #(#variant_field_names_lit,)* ) => f.debug_tuple(#variant_name_lit)
+                                            #(#variant_fields)* .finish(),
+                    }
+                } else {
+                    let variant_field_names = v.fields.iter().map(|f| f.ident.as_ref().cloned()).collect::<Vec<_>>();
+                    quote! {
+                        Self:: #variant_name { #(#variant_field_names,)* } => f.debug_struct(#variant_name_lit)
+                                            #(#variant_fields)* .finish() ,
+                    }
                 }
             }).collect::<Vec<_>>();
 
@@ -85,26 +168,43 @@ pub fn derive(input: TokenStream) -> TokenStream {
                     #(#variants)*
                 }
             }
-            
-        },
+        }
         Data::Struct(s) => {
-            let fields = s.fields.iter().map(|f| gen_field(f, true)).collect::<Vec<_>>();
-
-            quote! {
-                f.debug_struct(#ident_lit)
-                #(#fields)*
-                .finish()
+            match s.fields {
+                Fields::Named(named_fields) => {
+                    let named_fields_streams = 
+                        named_fields.named.iter().enumerate().map(gen_field_struct_named).collect::<Vec<_>>();
+                    quote! {
+                        f.debug_struct(#ident_lit)
+                        #(#named_fields_streams)*
+                        .finish()
+                    }
+                }
+                Fields::Unnamed(unnamed_fields) => {
+                    let unnamed_field_streams = 
+                        unnamed_fields.unnamed.iter().enumerate().map(gen_field_struct_unnamed).collect::<Vec<_>>();
+                    quote! {
+                        f.debug_tuple(#ident_lit)
+                        #(#unnamed_field_streams)*
+                        .finish()
+                    }
+                }
+                _ => todo!(), // empty struct
             }
-        },
+        }
         Data::Union(_) => panic!("Union are not supported for now"),
     };
 
     let output = quote! {
-        impl #generic_quote DebugWithContext<#context_struct> for #ident #generic_quote {
+        impl #generic_quote DebugWithContext<#context_struct> for #ident #generic_quote
+        #where_clause 
+        {
             fn fmt_with_context(&self, f: &mut ::std::fmt::Formatter, context: &#context_struct) -> ::std::fmt::Result {
                 #fmt_code
             }
         }
     };
-    output.into()
+    let out = output.into();
+    //println!("{}", &out);
+    out
 }
