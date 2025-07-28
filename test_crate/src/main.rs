@@ -16,7 +16,9 @@ struct Test {
 
 #[derive(DebugWithContext)]
 #[debug_context(Context)]
-struct TestGenerics<T, A: DebugWithContext<Context>> {
+struct TestGenerics<T, A>
+where A: Debug
+{
     a : T,
     b : Vec<A>,
 }

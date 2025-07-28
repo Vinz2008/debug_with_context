@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::{ToTokens, quote};
-use syn::{Data, DeriveInput, Field, Fields, parse_macro_input, spanned::Spanned};
+use syn::{parse_macro_input, parse_quote, spanned::Spanned, Data, DeriveInput, Field, Fields, GenericParam, WhereClause, WherePredicate};
 
 fn compile_error<T: ToTokens>(tokens: T, message: &'static str) -> proc_macro2::TokenStream {
     syn::Error::new_spanned(tokens, message).to_compile_error()
@@ -70,6 +70,7 @@ fn gen_field(field: &Field, field_idx: usize, is_struct: bool, is_named: bool) -
 }
 
 // TODO : remove all the useless .collect::<Vec<_>>() ?
+// TODO : reduce clones
 
 #[proc_macro_derive(DebugWithContext, attributes(debug_context))]
 pub fn derive(input: TokenStream) -> TokenStream {
@@ -110,10 +111,23 @@ pub fn derive(input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
 
-    let where_clause = match generics.where_clause {
-        Some(where_clause) => Some(where_clause.to_token_stream()), 
-        None => None,
+    let mut where_clause = match generics.where_clause {
+        Some(where_clause) => where_clause, 
+        None => WhereClause {
+            where_token: Default::default(),
+            predicates: syn::punctuated::Punctuated::new(),
+        },
     };
+
+    for type_param in generics.params {
+        if let GenericParam::Type(type_param) = type_param {
+            let ident = &type_param.ident;
+            let type_param_bound: WherePredicate = parse_quote! {
+                #ident: DebugWithContext<#context_struct>
+            };
+            where_clause.predicates.push(type_param_bound);
+        }
+    }
 
 
     let mut generic_quote = None;
@@ -196,6 +210,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
     };
 
     let output = quote! {
+        #[automatically_derived]
         impl #generic_quote DebugWithContext<#context_struct> for #ident #generic_quote
         #where_clause 
         {
