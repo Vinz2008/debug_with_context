@@ -45,7 +45,7 @@ macro_rules! debug_with_context_debug {
 }
 
 // TODO : add types here ?
-debug_with_context_debug!(u8, i8, u16, i16, u32, i32, u64, i64, usize, isize, &str, String);
+debug_with_context_debug!(bool, u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, f32, f64, usize, isize, char, &str, String, ());
 
 
 // TODO : use a macro to create tuples for example to a bigger size

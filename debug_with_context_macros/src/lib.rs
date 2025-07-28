@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::{ToTokens, quote};
-use syn::{parse_macro_input, parse_quote, spanned::Spanned, Data, DeriveInput, Field, Fields, GenericParam, WhereClause, WherePredicate};
+use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Field, Fields, GenericParam, WhereClause, WherePredicate};
 
 fn compile_error<T: ToTokens>(tokens: T, message: &'static str) -> proc_macro2::TokenStream {
     syn::Error::new_spanned(tokens, message).to_compile_error()
