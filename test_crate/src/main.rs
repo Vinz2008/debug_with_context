@@ -38,6 +38,10 @@ struct TestT(u64);
 
 #[derive(DebugWithContext)]
 #[debug_context(Context)]
+struct TestNothing;
+
+#[derive(DebugWithContext)]
+#[debug_context(Context)]
 enum TestET {
     VariantA(i32),
     VariantB(u64),
@@ -45,11 +49,11 @@ enum TestET {
 
 #[derive(DebugWithContext)]
 #[debug_context(Context)]
-enum TestEBoth {
+enum TestEAll {
     VariantA(i32),
     VariantB { b: i64 },
+    VariantC,
 }
-
 fn main(){
     let context = Context;
     let test = Test {
@@ -59,6 +63,9 @@ fn main(){
         d: "oo".to_string(),
     };
 
+    println!("{:?}", DebugWrapContext::new(&test, &context));
+
+    let test = TestNothing;
     println!("{:?}", DebugWrapContext::new(&test, &context));
 
     let test = TestT(6);
@@ -79,8 +86,10 @@ fn main(){
     let testet = TestET::VariantB(3);
     println!("{:?}", DebugWrapContext::new(&testet, &context));
 
-    let testeboth = TestEBoth::VariantA(2);
+    let testeboth = TestEAll::VariantA(2);
     println!("{:?}", DebugWrapContext::new(&testeboth, &context));
-    let testeboth = TestEBoth::VariantB { b: 3 };
+    let testeboth = TestEAll::VariantB { b: 3 };
+    println!("{:?}", DebugWrapContext::new(&testeboth, &context));
+    let testeboth = TestEAll::VariantC;
     println!("{:?}", DebugWrapContext::new(&testeboth, &context));
 }
