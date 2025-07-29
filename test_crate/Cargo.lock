@@ -12,6 +12,8 @@ dependencies = [
 [[package]]
 name = "debug_with_context_macros"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ed1471588afa3e7702c705f06fc06e8c89489088ce4c4bf6093bb8d0e659764"
 dependencies = [
  "proc-macro2",
  "quote",

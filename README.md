@@ -17,12 +17,15 @@ A Rust crate for context-aware `Debug` formatting via a custom derive macro.
 Add to your `Cargo.toml`:
 
 ```toml
-debug_with_context = { git = "https://github.com/Vinz2008/debug_with_context" }
+[dependencies]
+debug_with_context = "0.1.0"
 ```
 
 Example:
 
 ```rust
+#![feature(debug_closure_helpers)]
+
 use debug_with_context::{DebugWithContext, DebugWrapContext};
 use std::fmt;
 
