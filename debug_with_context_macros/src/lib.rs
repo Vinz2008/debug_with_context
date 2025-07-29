@@ -237,7 +237,6 @@ pub fn derive(input: TokenStream) -> TokenStream {
                         f.debug_struct(#ident_lit).finish()
                     }
                 }
-                _ => todo!(), // empty struct
             }
         }
         Data::Union(_) => panic!("Union are not supported for now"),
