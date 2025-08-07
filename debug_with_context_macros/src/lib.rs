@@ -36,8 +36,7 @@ fn get_unnamed_enum_arg(idx: usize) -> String {
 fn gen_field(field: &Field, field_idx: usize, is_struct: bool, is_named: bool) -> proc_macro2::TokenStream {
     let field_name = match &field.ident {
         Some(i) => {
-            let ident_i = i.clone();
-            quote! { #ident_i }
+            quote! { #i }
         }
         None => {
             if is_struct {
@@ -74,9 +73,6 @@ fn gen_field(field: &Field, field_idx: usize, is_struct: bool, is_named: bool) -
         })
     }
 }
-
-// TODO : remove all the useless .collect::<Vec<_>>() ?
-// TODO : reduce clones
 
 enum EnumType {
     Struct,
@@ -179,19 +175,18 @@ pub fn derive(input: TokenStream) -> TokenStream {
                     EnumType::Empty => gen_field_do_nothing,
                 };
                 
-                let variant_fields = v.fields.iter().enumerate().map(gen_field_enum).collect::<Vec<_>>();
+                let variant_fields = v.fields.iter().enumerate().map(gen_field_enum);
                 
                 match enum_type {
                     EnumType::Tuple => {
-                        let variant_field_names_lit = 
-                            (0..v.fields.len()).map(get_unnamed_enum_arg).map(|e| Ident::new(&e, proc_macro2::Span::call_site())).collect::<Vec<_>>();
+                        let variant_field_names_lit = (0..v.fields.len()).map(get_unnamed_enum_arg).map(|e| Ident::new(&e, proc_macro2::Span::call_site()));
                             quote! {
                                 Self:: #variant_name ( #(#variant_field_names_lit,)* ) => f.debug_tuple(#variant_name_lit)
                                                 #(#variant_fields)* .finish(),
                             }
                     }
                     EnumType::Struct => {
-                        let variant_field_names = v.fields.iter().map(|f| f.ident.as_ref().cloned()).collect::<Vec<_>>();
+                        let variant_field_names = v.fields.iter().map(|f| f.ident.as_ref());
                         quote! {
                             Self:: #variant_name { #(#variant_field_names,)* } => f.debug_struct(#variant_name_lit)
                                                 #(#variant_fields)* .finish() ,
@@ -203,7 +198,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
                         }
                     }
                 }
-            }).collect::<Vec<_>>();
+            });
 
             quote! {
                 match self {
@@ -214,8 +209,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
         Data::Struct(s) => {
             match s.fields {
                 Fields::Named(named_fields) => {
-                    let named_fields_streams = 
-                        named_fields.named.iter().enumerate().map(gen_field_struct_named).collect::<Vec<_>>();
+                    let named_fields_streams = named_fields.named.iter().enumerate().map(gen_field_struct_named);
                     quote! {
                         f.debug_struct(#ident_lit)
                         #(#named_fields_streams)*
@@ -223,8 +217,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
                     }
                 },
                 Fields::Unnamed(unnamed_fields) => {
-                    let unnamed_field_streams = 
-                        unnamed_fields.unnamed.iter().enumerate().map(gen_field_struct_unnamed).collect::<Vec<_>>();
+                    let unnamed_field_streams = unnamed_fields.unnamed.iter().enumerate().map(gen_field_struct_unnamed);
                     quote! {
                         f.debug_tuple(#ident_lit)
                         #(#unnamed_field_streams)*
