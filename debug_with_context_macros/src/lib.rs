@@ -46,7 +46,7 @@ fn gen_field(field: &Field, field_idx: usize, is_struct: bool, is_named: bool) -
                 let idx_str = get_unnamed_enum_arg(field_idx);
                 Ident::new(&idx_str, proc_macro2::Span::call_site()).into_token_stream()
             }
-        } // TODO : handle struct tuples ?
+        }
     };
 
     let field_name_str = field_name.to_string();
@@ -153,7 +153,6 @@ pub fn derive(input: TokenStream) -> TokenStream {
     let ident_str = ident.to_string();
     let ident_lit = syn::LitStr::new(&ident_str, proc_macro2::Span::call_site());
 
-    // TODO : add support for tuple enums and structs
     let fmt_code = match data {
         Data::Enum(e) => {
             let variants = e.variants.iter().map(|v|{

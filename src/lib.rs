@@ -1,8 +1,8 @@
-// TODO : put this on crates.io (in another github repo then add a submodule ?)
-
 #![feature(debug_closure_helpers)]
 
-use std::{collections::HashMap, fmt::{self, Debug}};
+// TODO : add a no-std feature to deactivate the parts that need std 
+
+use std::{collections::HashMap, convert::Infallible, env::Args, ffi::{CStr, CString, OsStr, OsString}, fmt::{self, Debug}, path::{Path, PathBuf}, str::Chars};
 
 pub use debug_with_context_macros::DebugWithContext;
 
@@ -46,7 +46,13 @@ macro_rules! debug_with_context_debug {
 
 // TODO : add types here ?
 debug_with_context_debug!(bool, u8, i8, u16, i16, u32, i32, u64, i64, u128, i128, f32, f64, usize, isize, char, &str, String, ());
+debug_with_context_debug!(Infallible, Args, CStr, CString, OsStr, OsString, Path, PathBuf);
 
+impl <'a, C> DebugWithContext<C> for Chars<'a> {
+    fn fmt_with_context(&self, f: &mut fmt::Formatter, _context: &C) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 // TODO : use a macro to create tuples for example to a bigger size
 impl <C, T1, T2> DebugWithContext<C> for (T1, T2)
