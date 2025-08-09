@@ -122,6 +122,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
     out.into()
 }
 
+// TODO : replace multiple impls with a generic one ?
 fn generate_impl_context_struct(context_struct : Ident, ident: &Ident, data: &Data, generics : &Generics) -> proc_macro2::TokenStream {
     let generic_param_types = generics
         .type_params()
