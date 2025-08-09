@@ -102,28 +102,6 @@ where
     }
 }
 
-/*#[macro_export]
-macro_rules! dbg_intern {
-    // NOTE: We cannot use `concat!` to make a static string as a format argument
-    // of `eprintln!` because `file!` could contain a `{` or
-    // `$val` expression could be a block (`{ .. }`), in which case the `eprintln!`
-    // will be malformed.
-    () => {
-        eprintln!("[{}:{}:{}]", file!(), line!(), column!())
-    };
-    ($val:expr, $context:expr) => {
-        // Use of `match` here is intentional because it affects the lifetimes
-        // of temporaries - https://stackoverflow.com/a/48732525/1063961
-        match $val {
-            tmp => {
-                eprintln!("[{}:{}:{}] {} = {:#?}",
-                    file!(), line!(), column!(), stringify!($val),  $crate::debug::DebugWrapContext::new(&tmp, $context));
-                tmp
-            }
-        }
-    };
-}*/
-
 impl<C, T> DebugWithContext<C> for &'_ T where T: DebugWithContext<C> {
     fn fmt_with_context(&self, f: &mut fmt::Formatter, context: &C) -> fmt::Result {
         (*self).fmt_with_context(f, context)
