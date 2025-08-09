@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::{ToTokens, quote};
-use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Field, Fields, GenericParam, Generics, WhereClause, WherePredicate};
+use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Field, Fields, GenericParam, WhereClause, WherePredicate};
 
 fn compile_error<T: ToTokens>(tokens: T, message: &'static str) -> proc_macro2::TokenStream {
     syn::Error::new_spanned(tokens, message).to_compile_error()
@@ -89,11 +89,11 @@ pub fn derive(input: TokenStream) -> TokenStream {
         generics,
         data,
     } = parse_macro_input!(input);
-    let mut context_structs = Vec::new();
+    let mut context_struct = None;
     for attr in attrs {
         if attr.path().is_ident("debug_context") {
             attr.parse_nested_meta(|meta| {
-                context_structs.push(
+                context_struct = Some(
                     meta.path
                         .get_ident()
                         .expect("Expected an identifier for the debug context struct")
@@ -105,40 +105,29 @@ pub fn derive(input: TokenStream) -> TokenStream {
         }
     }
 
-    if context_structs.is_empty(){
-        return compile_error(ident, "Missing #[debug_context(...)] attribute").into();
-    }
-
-    let mut impls = Vec::new();
-    for c_s in context_structs {
-        impls.push(generate_impl_context_struct(c_s, &ident, &data, &generics));
-    }
-    
-
-    let out = quote! {
-        #(#impls)*
+    let context_struct = match context_struct {
+        Some(cs) => cs,
+        None => {
+            return compile_error(ident, "Missing #[debug_context(...)] attribute").into();
+        }
     };
-    //println!("{}", &out);
-    out.into()
-}
 
-// TODO : replace multiple impls with a generic one ?
-fn generate_impl_context_struct(context_struct : Ident, ident: &Ident, data: &Data, generics : &Generics) -> proc_macro2::TokenStream {
+
     let generic_param_types = generics
         .type_params()
         .map(|t| t.clone())
         .collect::<Vec<_>>();
 
 
-    let mut where_clause = match &generics.where_clause {
-        Some(where_clause) => where_clause.clone(), 
+    let mut where_clause = match generics.where_clause {
+        Some(where_clause) => where_clause, 
         None => WhereClause {
             where_token: Default::default(),
             predicates: syn::punctuated::Punctuated::new(),
         },
     };
 
-    for type_param in &generics.params {
+    for type_param in generics.params {
         if let GenericParam::Type(type_param) = type_param {
             let ident = &type_param.ident;
             let type_param_bound: WherePredicate = parse_quote! {
@@ -218,7 +207,7 @@ fn generate_impl_context_struct(context_struct : Ident, ident: &Ident, data: &Da
             }
         }
         Data::Struct(s) => {
-            match &s.fields {
+            match s.fields {
                 Fields::Named(named_fields) => {
                     let named_fields_streams = named_fields.named.iter().enumerate().map(gen_field_struct_named);
                     quote! {
@@ -255,5 +244,7 @@ fn generate_impl_context_struct(context_struct : Ident, ident: &Ident, data: &Da
             }
         }
     };
-    output
+    let out = output.into();
+    //println!("{}", &out);
+    out
 }
