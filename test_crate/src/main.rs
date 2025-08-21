@@ -55,7 +55,28 @@ enum TestEAll {
     VariantC,
 }
 
+struct Context1;
+
+struct Context2;
+
+#[derive(DebugWithContext)]
+struct Test2Context {
+    a : i32,
+    b : i64,
+}
+
 fn main(){
+
+    let context1 = Context1;
+    let context2 = Context2;
+    let t = Test2Context {
+        a: 3,
+        b: 6
+    };
+
+    println!("{:?}", DebugWrapContext::new(&t, &context1));
+    println!("{:?}", DebugWrapContext::new(&t, &context2));
+
     let context = Context;
     let test = Test {
         a: 3,
@@ -94,8 +115,8 @@ fn main(){
     let testeboth = TestEAll::VariantC;
     println!("{:?}", DebugWrapContext::new(&testeboth, &context));
 
-    let test2contexts = DoubleContext {
+    /*let test2contexts = DoubleContext {
         a: 3,
         b: 4,
-    };
+    };*/
 }

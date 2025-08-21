@@ -1,11 +1,11 @@
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::{ToTokens, quote};
-use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Field, Fields, GenericParam, WhereClause, WherePredicate};
+use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Field, Fields, GenericParam, TypeParam, WhereClause, WherePredicate};
 
-fn compile_error<T: ToTokens>(tokens: T, message: &'static str) -> proc_macro2::TokenStream {
+/*fn compile_error<T: ToTokens>(tokens: T, message: &'static str) -> proc_macro2::TokenStream {
     syn::Error::new_spanned(tokens, message).to_compile_error()
-}
+}*/
 
 fn gen_field_struct_named(field: (usize, &Field)) -> proc_macro2::TokenStream {
     gen_field(field.1, field.0, true, true)
@@ -105,12 +105,12 @@ pub fn derive(input: TokenStream) -> TokenStream {
         }
     }
 
-    let context_struct = match context_struct {
+    /*let context_struct = match context_struct {
         Some(cs) => cs,
         None => {
             return compile_error(ident, "Missing #[debug_context(...)] attribute").into();
         }
-    };
+    };*/
 
 
     let generic_param_types = generics
@@ -140,10 +140,28 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
     let mut generic_quote = None;
 
+    let mut generic_quote_without_generic_debug_context = None;
+
+
+    // TODO : make this simpler
     if !generic_param_types.is_empty() {
+        let generic_param_context = if context_struct.is_none() { 
+            Some(quote! { DEBUG_WITH_CONTEXT_CONTEXT_STRUCT, })
+        } else {
+            None
+        };
         generic_quote = Some(quote! {
-            <#(#generic_param_types,)*>
+            <#generic_param_context #(#generic_param_types,)*>
         });
+        generic_quote_without_generic_debug_context = Some(quote! {
+            <#(#generic_param_types,)*>
+        })
+    } else {
+        if context_struct.is_none() {
+            generic_quote = Some(quote! {
+                <DEBUG_WITH_CONTEXT_CONTEXT_STRUCT>
+            });
+        }
     }
 
     let ident_str = ident.to_string();
@@ -234,16 +252,32 @@ pub fn derive(input: TokenStream) -> TokenStream {
         Data::Union(_) => panic!("Union are not supported for now"),
     };
 
-    let output = quote! {
-        #[automatically_derived]
-        impl #generic_quote DebugWithContext<#context_struct> for #ident #generic_quote
-        #where_clause 
-        {
-            fn fmt_with_context(&self, f: &mut ::std::fmt::Formatter, context: &#context_struct) -> ::std::fmt::Result {
-                #fmt_code
+    let output = if let Some(context_struct) = context_struct {
+        quote! {
+            #[automatically_derived]
+            impl #generic_quote DebugWithContext<#context_struct> for #ident #generic_quote
+            #where_clause 
+            {
+                fn fmt_with_context(&self, f: &mut ::std::fmt::Formatter, context: &#context_struct) -> ::std::fmt::Result {
+                    #fmt_code
+                }
+            }
+        }
+    } else {
+        // not specialized
+        quote! {
+            #[automatically_derived]
+            impl #generic_quote DebugWithContext<DEBUG_WITH_CONTEXT_CONTEXT_STRUCT> for #ident #generic_quote_without_generic_debug_context
+            #where_clause 
+            {
+                fn fmt_with_context(&self, f: &mut ::std::fmt::Formatter, context: &DEBUG_WITH_CONTEXT_CONTEXT_STRUCT) -> ::std::fmt::Result {
+                    #fmt_code
+                }
             }
         }
     };
+
+    
     let out = output.into();
     //println!("{}", &out);
     out
