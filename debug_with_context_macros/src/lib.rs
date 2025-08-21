@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::{ToTokens, quote};
-use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Field, Fields, GenericParam, WhereClause, WherePredicate};
+use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Field, Fields, GenericParam, Generics, TypeParam, WhereClause, WherePredicate};
 
 /*fn compile_error<T: ToTokens>(tokens: T, message: &'static str) -> proc_macro2::TokenStream {
     syn::Error::new_spanned(tokens, message).to_compile_error()
@@ -89,16 +89,14 @@ pub fn derive(input: TokenStream) -> TokenStream {
         generics,
         data,
     } = parse_macro_input!(input);
-    let mut context_struct = None;
+    let mut context_structs = Vec::new();
     for attr in attrs {
         if attr.path().is_ident("debug_context") {
             attr.parse_nested_meta(|meta| {
-                context_struct = Some(
-                    meta.path
+                context_structs.push( meta.path
                         .get_ident()
                         .expect("Expected an identifier for the debug context struct")
-                        .clone(),
-                );
+                        .clone());;
                 Ok(())
             })
             .unwrap();
@@ -119,24 +117,34 @@ pub fn derive(input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
 
 
-    let mut where_clause = match generics.where_clause {
-        Some(where_clause) => where_clause, 
-        None => WhereClause {
-            where_token: Default::default(),
-            predicates: syn::punctuated::Punctuated::new(),
-        },
+    
+
+
+    
+    
+    let output = if context_structs.is_empty(){
+        gen_struct_derive(None, &data, &ident, &generic_param_types, &generics)
+    } else {
+        let mut outputs = Vec::new();
+
+        for c in context_structs {
+            outputs.push(gen_struct_derive(Some(c), &data, &ident, &generic_param_types, &generics));
+        }
+
+        quote! {
+            #(#outputs)*
+        }
     };
 
-    for type_param in generics.params {
-        if let GenericParam::Type(type_param) = type_param {
-            let ident = &type_param.ident;
-            let type_param_bound: WherePredicate = parse_quote! {
-                #ident: DebugWithContext<#context_struct>
-            };
-            where_clause.predicates.push(type_param_bound);
-        }
-    }
 
+    
+    let out = output.into();
+    //println!("{}", &out);
+    out
+}
+
+
+fn gen_struct_derive(context_struct : Option<Ident>, data : &Data, ident : &Ident, generic_param_types : &[TypeParam], generics : &Generics) -> proc_macro2::TokenStream {
 
     let mut generic_quote = None;
 
@@ -161,11 +169,27 @@ pub fn derive(input: TokenStream) -> TokenStream {
             <DEBUG_WITH_CONTEXT_CONTEXT_STRUCT>
         });
     }
-    
+
+    let mut where_clause = match &generics.where_clause {
+        Some(where_clause) => where_clause.clone(), 
+        None => WhereClause {
+            where_token: Default::default(),
+            predicates: syn::punctuated::Punctuated::new(),
+        },
+    };
+
+    for type_param in &generics.params {
+        if let GenericParam::Type(type_param) = type_param {
+            let ident = &type_param.ident;
+            let type_param_bound: WherePredicate = parse_quote! {
+                #ident: DebugWithContext<#context_struct>
+            };
+            where_clause.predicates.push(type_param_bound);
+        }
+    }
 
     let ident_str = ident.to_string();
     let ident_lit = syn::LitStr::new(&ident_str, proc_macro2::Span::call_site());
-
     let fmt_code = match data {
         Data::Enum(e) => {
             let variants = e.variants.iter().map(|v|{
@@ -224,7 +248,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
             }
         }
         Data::Struct(s) => {
-            match s.fields {
+            match &s.fields {
                 Fields::Named(named_fields) => {
                     let named_fields_streams = named_fields.named.iter().enumerate().map(gen_field_struct_named);
                     quote! {
@@ -275,9 +299,5 @@ pub fn derive(input: TokenStream) -> TokenStream {
             }
         }
     };
-
-    
-    let out = output.into();
-    //println!("{}", &out);
-    out
+    output
 }

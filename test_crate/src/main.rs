@@ -65,6 +65,14 @@ struct Test2Context {
     b : i64,
 }
 
+#[derive(DebugWithContext)]
+#[debug_context(Context1)]
+#[debug_context(Context2)]
+struct Test2ContextNoGeneric {
+    a : i32,
+    b : i64,
+}
+
 fn main(){
 
     let context1 = Context1;

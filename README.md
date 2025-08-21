@@ -18,7 +18,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-debug_with_context = "0.1.7"
+debug_with_context = "0.1.14"
 ```
 
 Example:
