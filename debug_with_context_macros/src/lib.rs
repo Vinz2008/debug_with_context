@@ -1,7 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::{ToTokens, quote};
-use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Field, Fields, GenericParam, TypeParam, WhereClause, WherePredicate};
+use syn::{parse_macro_input, parse_quote, Data, DeriveInput, Field, Fields, GenericParam, WhereClause, WherePredicate};
 
 /*fn compile_error<T: ToTokens>(tokens: T, message: &'static str) -> proc_macro2::TokenStream {
     syn::Error::new_spanned(tokens, message).to_compile_error()
@@ -115,7 +115,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
     let generic_param_types = generics
         .type_params()
-        .map(|t| t.clone())
+        .cloned()
         .collect::<Vec<_>>();
 
 
@@ -156,13 +156,12 @@ pub fn derive(input: TokenStream) -> TokenStream {
         generic_quote_without_generic_debug_context = Some(quote! {
             <#(#generic_param_types,)*>
         })
-    } else {
-        if context_struct.is_none() {
-            generic_quote = Some(quote! {
-                <DEBUG_WITH_CONTEXT_CONTEXT_STRUCT>
-            });
-        }
+    } else if context_struct.is_none() {
+        generic_quote = Some(quote! {
+            <DEBUG_WITH_CONTEXT_CONTEXT_STRUCT>
+        });
     }
+    
 
     let ident_str = ident.to_string();
     let ident_lit = syn::LitStr::new(&ident_str, proc_macro2::Span::call_site());
