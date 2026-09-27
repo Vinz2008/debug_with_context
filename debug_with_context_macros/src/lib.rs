@@ -96,7 +96,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
                 context_structs.push( meta.path
                         .get_ident()
                         .expect("Expected an identifier for the debug context struct")
-                        .clone());;
+                        .clone());
                 Ok(())
             })
             .unwrap();
@@ -116,12 +116,7 @@ pub fn derive(input: TokenStream) -> TokenStream {
         .cloned()
         .collect::<Vec<_>>();
 
-
-    
-
-
-    
-    
+        
     let output = if context_structs.is_empty(){
         gen_struct_derive(None, &data, &ident, &generic_param_types, &generics)
     } else {
@@ -149,7 +144,6 @@ fn gen_struct_derive(context_struct : Option<Ident>, data : &Data, ident : &Iden
     let mut generic_quote = None;
 
     let mut generic_quote_without_generic_debug_context = None;
-
 
     // TODO : make this simpler
     if !generic_param_types.is_empty() {

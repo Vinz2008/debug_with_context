@@ -8,10 +8,6 @@ A Rust crate for context-aware `Debug` formatting via a custom derive macro.
 - Custom context parameter for formatting.
 - Works with generics, tuples, options, vectors, and maps.
 
-## Requirements
-
-- **Nightly Rust** (`#![feature(debug_closure_helpers)]`)
-
 ## Usage
 
 Add to your `Cargo.toml`:

@@ -1,7 +1,3 @@
-#![feature(debug_closure_helpers)]
-
-// TODO : add a no-std feature to deactivate the parts that need std 
-
 use std::{collections::HashMap, convert::Infallible, env::Args, ffi::{CStr, CString, OsStr, OsString}, fmt::{self, Debug}, ops::Deref, path::{Path, PathBuf}, str::Chars};
 
 pub use debug_with_context_macros::DebugWithContext;
@@ -61,7 +57,7 @@ where
     T2 : DebugWithContext<C>
 {
     fn fmt_with_context(&self, f: &mut fmt::Formatter, context: &C) -> fmt::Result {
-        f.debug_tuple("").field_with(|fmt| self.0.fmt_with_context(fmt, context)).field_with(|fmt| self.1.fmt_with_context(fmt, context)).finish()
+        f.debug_tuple("").field(&DebugWrapContext::new(&self.0, context)).field(&DebugWrapContext::new(&self.1, context)).finish()
     }
 }
 
